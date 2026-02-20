@@ -11,10 +11,10 @@ window.SmartyViews = {
   renderLanding() {
     return `
       <section class="page landing">
-        <div class="panel center">
-          <div class="logo">🙂</div>
-          <h1>Hello, <span>Smarty</span></h1>
-          <p>Your simple, quiet space for a wonderful day.</p>
+        <div class="panel center landing-card">
+          <div class="logo">:)</div>
+          <h1 class="home-title">Hey Little Star, Meet <span class="brand-name">Sithare</span></h1>
+          <p class="home-subtitle">A warm, safe, and happy space made just for your day.</p>
           <div class="clock">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           <button class="btn btn-primary" data-action="start-day">Start Day</button>
           <button class="btn btn-ghost" data-action="parent-auth">Parent Settings</button>
@@ -22,21 +22,24 @@ window.SmartyViews = {
       </section>
     `;
   },
-
   renderParentAuth() {
+    const state = window.SmartyState;
+    const utils = window.SmartyUtils;
     return `
       <section class="page parent-auth">
         <div class="panel auth-card">
           <button class="btn btn-link" data-action="go-landing">Back</button>
           <h2>Parent Verification</h2>
           <p>Restricted area. Please sign in.</p>
-          <input type="password" placeholder="••••" />
+          <div class="pin-row">
+            <input id="parent-pin" type="${state.parentAuth.showPin ? "text" : "password"}" placeholder="Enter PIN" value="${utils.escapeHtml(state.parentAuth.pin)}" />
+            <button class="btn btn-ghost pin-eye" data-action="toggle-pin-visibility" aria-label="Show or hide PIN">&#128065;</button>
+          </div>
           <button class="btn btn-primary" data-action="enter-parent">Enter Dashboard</button>
         </div>
       </section>
     `;
   },
-
   renderVoiceBox() {
     const state = window.SmartyState;
     if (state.audioURL) {
@@ -84,8 +87,8 @@ window.SmartyViews = {
       .map(
         (emoji) => `
       <button class="emoji" data-action="emoji" data-label="${utils.escapeHtml(emoji.label)}" data-icon="${utils.escapeHtml(emoji.icon)}">
-        <span>${emoji.icon}</span>
-        <strong>${utils.escapeHtml(emoji.label)}</strong>
+        <span class="emoji-icon">${emoji.icon}</span>
+        <span class="emoji-label">${utils.escapeHtml(emoji.label)}</span>
       </button>
     `
       )
@@ -133,16 +136,41 @@ window.SmartyViews = {
     const videos = state.videos
       .map((video) => {
         const id = utils.extractYoutubeId(video.url);
+        const watchUrl = utils.toYoutubeWatchUrl(video.url);
+        const isUnlocked = state.unlockedVideoIds.includes(video.id);
+        const thumb = id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : "";
         return `
-        <article class="video-card">
-          <div class="video-frame">
-            ${
-              id
-                ? `<iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&controls=1" title="${utils.escapeHtml(video.title)}" frameborder="0" allowfullscreen></iframe>`
-                : '<div class="video-missing">Video not found</div>'
-            }
-          </div>
+        <article class="video-card ${isUnlocked ? "unlocked" : "locked"}">
+          ${
+            isUnlocked
+              ? `<div class="video-frame">
+                  ${
+                    id
+                      ? `<iframe
+                          src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&controls=1"
+                          title="${utils.escapeHtml(video.title)}"
+                          frameborder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerpolicy="strict-origin-when-cross-origin"
+                          loading="lazy"
+                          allowfullscreen
+                        ></iframe>`
+                      : '<div class="video-missing">Video not found</div>'
+                  }
+                </div>`
+              : `<div class="video-frame locked">
+                  ${thumb ? `<img src="${thumb}" alt="${utils.escapeHtml(video.title)} preview" />` : '<div class="video-missing">Video not found</div>'}
+                  <div class="video-lock">Locked Reward Video</div>
+                </div>`
+          }
           <h4>${utils.escapeHtml(video.title)}</h4>
+          ${
+            isUnlocked
+              ? watchUrl
+                ? `<a class="btn btn-link" href="${utils.escapeHtml(watchUrl)}" target="_blank" rel="noopener noreferrer">Watch on YouTube</a>`
+                : ""
+              : `<button class="btn btn-primary" data-action="unlock-video" data-id="${utils.escapeHtml(video.id)}" ${state.videoRewards < 1 ? "disabled" : ""}>Unlock (1 Reward)</button>`
+          }
         </article>
       `;
       })
@@ -157,8 +185,8 @@ window.SmartyViews = {
         </header>
 
         <div class="child-grid">
-          <section class="card">
-            <h2>How am I?</h2>
+          <section class="card emotion-card">
+            <h2 class="emotion-title">How am I?</h2>
             <div class="emoji-grid">${emotionButtons}</div>
             ${this.renderVoiceBox()}
           </section>
@@ -170,6 +198,7 @@ window.SmartyViews = {
 
           <section class="card wide">
             <h2>Fun Time</h2>
+            <p class="reward-note">Rewards available: <strong>${state.videoRewards}</strong>. Complete tasks to unlock videos.</p>
             <div class="videos">${videos}</div>
           </section>
         </div>
@@ -236,15 +265,15 @@ window.SmartyViews = {
         .join("") || '<p class="muted">Insufficient data for analysis.</p>';
 
     return `
-      <div class="parent-content">
+      <div class="parent-content insights-content">
         <div class="stats">
           <div class="stat-card"><label>Routine Completion</label><strong>${stats.rate}%</strong></div>
           <div class="stat-card"><label>Total Actions</label><strong>${stats.total}</strong></div>
           <div class="stat-card"><label>Dominant Mood</label><strong>${utils.escapeHtml(dominantMood)}</strong></div>
         </div>
         <div class="split">
-          <section class="card"><h3>Real-time Logs</h3>${logRows}</section>
-          <section class="card"><h3>Sentiment Analysis</h3>${moodRows}</section>
+          <section class="card insights-log-card"><h3>Real-time Logs</h3>${logRows}</section>
+          <section class="card insights-sentiment-card"><h3>Sentiment Analysis</h3>${moodRows}</section>
         </div>
       </div>
     `;
@@ -270,8 +299,8 @@ window.SmartyViews = {
       .join("");
 
     return `
-      <div class="parent-content">
-        <section class="card">
+      <div class="parent-content library-content">
+        <section class="card library-form-card">
           <h3>Whitelist New Video</h3>
           <div class="form-grid two">
             <input id="new-video-title" type="text" placeholder="Friendly Title" value="${utils.escapeHtml(state.newVid.title)}" />
@@ -281,7 +310,7 @@ window.SmartyViews = {
             </div>
           </div>
         </section>
-        <section class="gallery">${videos}</section>
+        <section class="gallery library-gallery">${videos}</section>
       </div>
     `;
   },
@@ -305,16 +334,23 @@ window.SmartyViews = {
       .join("");
 
     return `
-      <div class="parent-content">
-        <section class="card">
-          <h3>New Routine Item</h3>
+      <div class="parent-content planner-content">
+        <section class="card planner-form-card">
+          <h3>Manage To-Do List</h3>
           <div class="form-grid three">
-            <input id="new-routine-task" type="text" placeholder="Task Description" value="${utils.escapeHtml(state.newRot.task)}" />
+            <input id="new-routine-task" type="text" placeholder="Type a to-do item" value="${utils.escapeHtml(state.newRot.task)}" />
             <input id="new-routine-time" type="time" value="${utils.escapeHtml(state.newRot.time)}" />
-            <button class="btn btn-primary" data-action="add-routine">Create Task</button>
+            <button class="btn btn-primary" data-action="add-routine">Add Item</button>
+          </div>
+          <div class="form-grid">
+            <textarea id="new-routine-bulk" rows="4" placeholder="Type multiple items (one per line)">${utils.escapeHtml(state.newRot.bulk || "")}</textarea>
+            <div class="row">
+              <button class="btn btn-secondary" data-action="add-routine-bulk">Add Typed List</button>
+              <button class="btn btn-danger" data-action="delete-all-routines">Delete All</button>
+            </div>
           </div>
         </section>
-        <section class="card">${routines}</section>
+        <section class="card planner-list-card">${routines}</section>
       </div>
     `;
   },
@@ -335,6 +371,18 @@ window.SmartyViews = {
           <button class="nav-btn ${state.parentTab === "insights" ? "active" : ""}" data-action="tab" data-tab="insights">Activity Insights</button>
           <button class="nav-btn ${state.parentTab === "library" ? "active" : ""}" data-action="tab" data-tab="library">Content Filter</button>
           <button class="nav-btn ${state.parentTab === "planner" ? "active" : ""}" data-action="tab" data-tab="planner">Daily Planner</button>
+          <div class="sidebar-tools">
+            <p>Settings</p>
+            <button class="btn btn-secondary" data-action="refresh-parent-data">Refresh</button>
+            <button class="btn btn-danger" data-action="delete-recorded-data">Delete Recorded Data</button>
+            <div class="select-delete">
+              <label><input id="delete-logs" type="checkbox" ${state.deleteSelected.logs ? "checked" : ""} /> Activity Logs</label>
+              <label><input id="delete-audio" type="checkbox" ${state.deleteSelected.audio ? "checked" : ""} /> Voice Notes</label>
+              <label><input id="delete-stars" type="checkbox" ${state.deleteSelected.stars ? "checked" : ""} /> Stars</label>
+              <label><input id="delete-checklist" type="checkbox" ${state.deleteSelected.checklist ? "checked" : ""} /> Checklist Progress</label>
+              <button class="btn btn-danger" data-action="delete-selected-data">Delete Selected Data</button>
+            </div>
+          </div>
           <button class="btn btn-danger" data-action="go-landing">Logout</button>
         </aside>
         <main class="parent-main">
@@ -348,3 +396,5 @@ window.SmartyViews = {
     `;
   },
 };
+
+

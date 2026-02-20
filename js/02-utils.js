@@ -33,6 +33,11 @@ window.SmartyUtils = {
     return id;
   },
 
+  toYoutubeWatchUrl(url) {
+    const id = this.extractYoutubeId(url);
+    return id ? `https://www.youtube.com/watch?v=${id}` : null;
+  },
+
   escapeHtml(value) {
     return String(value)
       .replaceAll("&", "&amp;")

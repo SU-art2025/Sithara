@@ -1,11 +1,15 @@
 window.SmartyData = {
+  PARENT_PIN: "1234",
   EMOJIS: [
-    { id: "happy", icon: "😊", label: "Happy" },
-    { id: "sad", icon: "😢", label: "Sad" },
-    { id: "angry", icon: "😠", label: "Angry" },
-    { id: "sleepy", icon: "😴", label: "Sleepy" },
-    { id: "hungry", icon: "🍽️", label: "Hungry" },
-    { id: "help", icon: "🆘", label: "Help" },
+    { id: "happy", icon: "\uD83D\uDE0A", label: "Happy" },
+    { id: "excited", icon: "\uD83E\uDD73", label: "Excited" },
+    { id: "calm", icon: "\uD83D\uDE0C", label: "Calm" },
+    { id: "sad", icon: "\uD83D\uDE22", label: "Sad" },
+    { id: "tired", icon: "\uD83D\uDE34", label: "Tired" },
+    { id: "worried", icon: "\uD83D\uDE1F", label: "Worried" },
+    { id: "angry", icon: "\uD83D\uDE20", label: "Angry" },
+    { id: "proud", icon: "\uD83D\uDE0E", label: "Proud" },
+    { id: "help", icon: "\uD83E\uDD7A", label: "Need Help" },
   ],
   INITIAL_ROUTINES: [
     { id: "1", task: "Wake Up", icon: "🌅", completed: false, time: "08:00" },
@@ -16,8 +20,9 @@ window.SmartyData = {
   INITIAL_VIDEOS: [
     {
       id: "v1",
-      url: "https://www.youtube.com/watch?v=l4W6yB1JLm4",
-      title: "Alphabet Adventure",
+      url: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
+      title: "YouTube Demo Video",
     },
   ],
 };
+

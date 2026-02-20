@@ -30,11 +30,17 @@ window.SmartyActions = {
       if (item.id !== id) return item;
       const nextDone = !item.completed;
       if (nextDone) {
-        utils.speak(`Great job! You finished ${item.task}! You earned a star!`);
+        const shouldGrantVideoReward = !item.rewardClaimedToday;
+        utils.speak(
+          shouldGrantVideoReward
+            ? `Great job! You finished ${item.task}! You earned a star and a video reward!`
+            : `Great job! You finished ${item.task}! You earned a star!`
+        );
         utils.addLog("TASK", item.task, { status: "completed" });
         state.stars += 1;
+        if (shouldGrantVideoReward) state.videoRewards += 1;
       }
-      return { ...item, completed: nextDone };
+      return { ...item, completed: nextDone, rewardClaimedToday: item.rewardClaimedToday || nextDone };
     });
 
     window.SmartyStateHelpers.persist();
@@ -105,10 +111,16 @@ window.SmartyActions = {
 
   handleInput(target) {
     const state = window.SmartyState;
+    if (target.id === "parent-pin") state.parentAuth.pin = target.value;
     if (target.id === "new-video-title") state.newVid.title = target.value;
     if (target.id === "new-video-url") state.newVid.url = target.value;
     if (target.id === "new-routine-task") state.newRot.task = target.value;
     if (target.id === "new-routine-time") state.newRot.time = target.value;
+    if (target.id === "new-routine-bulk") state.newRot.bulk = target.value;
+    if (target.id === "delete-logs") state.deleteSelected.logs = target.checked;
+    if (target.id === "delete-audio") state.deleteSelected.audio = target.checked;
+    if (target.id === "delete-stars") state.deleteSelected.stars = target.checked;
+    if (target.id === "delete-checklist") state.deleteSelected.checklist = target.checked;
     window.SmartyStateHelpers.persist();
   },
 
@@ -125,9 +137,32 @@ window.SmartyActions = {
       return;
     }
 
-    if (action === "parent-auth") return this.setView("parent-auth");
+    if (action === "parent-auth") {
+      state.parentAuth.pin = "";
+      state.parentAuth.showPin = false;
+      return this.setView("parent-auth");
+    }
     if (action === "go-landing") return this.setView("landing");
-    if (action === "enter-parent") return this.setView("parent");
+    if (action === "toggle-pin-visibility") {
+      state.parentAuth.showPin = !state.parentAuth.showPin;
+      window.SmartyApp.render();
+      return;
+    }
+    if (action === "enter-parent") {
+      const enteredPin = String(state.parentAuth.pin || "").trim();
+      const validPin = String(window.SmartyData.PARENT_PIN || "1234");
+      if (!enteredPin) {
+        alert("Enter PIN to open Parent Settings.");
+        return;
+      }
+      if (enteredPin !== validPin) {
+        alert("Incorrect PIN.");
+        return;
+      }
+      state.parentAuth.pin = "";
+      state.parentAuth.showPin = false;
+      return this.setView("parent");
+    }
 
     if (action === "toggle-focus") {
       state.isFocusMode = !state.isFocusMode;
@@ -155,6 +190,50 @@ window.SmartyActions = {
       return;
     }
 
+    if (action === "refresh-parent-data") {
+      window.SmartyStateHelpers.resetRoutinesIfNewDay();
+      window.location.reload();
+      return;
+    }
+
+    if (action === "delete-recorded-data") {
+      if (!confirm("Delete all recorded activity data?")) return;
+
+      state.logs = [];
+      state.audioURL = null;
+      state.stars = 0;
+      state.routines = state.routines.map((routine) => ({ ...routine, completed: false, rewardClaimedToday: false }));
+      state.unlockedVideoIds = [];
+      state.videoRewards = 0;
+
+      window.SmartyStateHelpers.persist();
+      window.SmartyApp.render();
+      return;
+    }
+
+    if (action === "delete-selected-data") {
+      const selected = state.deleteSelected || {};
+      if (!selected.logs && !selected.audio && !selected.stars && !selected.checklist) {
+        alert("Select at least one data type to delete.");
+        return;
+      }
+      if (!confirm("Delete only selected data types?")) return;
+
+      if (selected.logs) state.logs = [];
+      if (selected.audio) state.audioURL = null;
+      if (selected.stars) state.stars = 0;
+      if (selected.checklist) {
+        state.routines = state.routines.map((routine) => ({ ...routine, completed: false, rewardClaimedToday: false }));
+        state.unlockedVideoIds = [];
+        state.videoRewards = 0;
+        state.isFocusMode = false;
+      }
+
+      window.SmartyStateHelpers.persist();
+      window.SmartyApp.render();
+      return;
+    }
+
     if (action === "add-video") {
       const title = state.newVid.title.trim();
       const url = state.newVid.url.trim();
@@ -172,6 +251,23 @@ window.SmartyActions = {
     if (action === "delete-video") {
       const id = actionEl.dataset.id;
       state.videos = state.videos.filter((video) => video.id !== id);
+      state.unlockedVideoIds = state.unlockedVideoIds.filter((videoId) => videoId !== id);
+      window.SmartyStateHelpers.persist();
+      window.SmartyApp.render();
+      return;
+    }
+
+    if (action === "unlock-video") {
+      const videoId = actionEl.dataset.id;
+      if (!videoId) return;
+      if (state.unlockedVideoIds.includes(videoId)) return;
+      if (state.videoRewards < 1) {
+        alert("Complete a task to earn a video reward.");
+        return;
+      }
+
+      state.videoRewards -= 1;
+      state.unlockedVideoIds.push(videoId);
       window.SmartyStateHelpers.persist();
       window.SmartyApp.render();
       return;
@@ -179,10 +275,10 @@ window.SmartyActions = {
 
     if (action === "add-routine") {
       const task = state.newRot.task.trim();
-      const time = state.newRot.time;
+      const time = state.newRot.time || "10:00";
       if (task) {
-        state.routines.push({ id: String(Date.now()), task, icon: "⭐", time, completed: false });
-        state.newRot = { task: "", icon: "⭐", time: "10:00" };
+        state.routines.push({ id: String(Date.now()), task, icon: "\u2B50", time, completed: false, rewardClaimedToday: false });
+        state.newRot = { ...state.newRot, task: "", icon: "\u2B50", time: "10:00" };
         window.SmartyStateHelpers.persist();
         window.SmartyApp.render();
         return;
@@ -191,9 +287,49 @@ window.SmartyActions = {
       return;
     }
 
+    if (action === "add-routine-bulk") {
+      const time = state.newRot.time || "10:00";
+      const lines = String(state.newRot.bulk || "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (!lines.length) {
+        alert("Type one or more tasks (one per line).");
+        return;
+      }
+
+      const base = Date.now();
+      lines.forEach((task, index) => {
+        state.routines.push({
+          id: String(base + index),
+          task,
+          icon: "\u2B50",
+          time,
+          completed: false,
+          rewardClaimedToday: false,
+        });
+      });
+
+      state.newRot = { ...state.newRot, bulk: "", task: "" };
+      window.SmartyStateHelpers.persist();
+      window.SmartyApp.render();
+      return;
+    }
+
     if (action === "delete-routine") {
       const id = actionEl.dataset.id;
       state.routines = state.routines.filter((routine) => routine.id !== id);
+      window.SmartyStateHelpers.persist();
+      window.SmartyApp.render();
+      return;
+    }
+
+    if (action === "delete-all-routines") {
+      if (!confirm("Delete all to-do list items?")) return;
+      state.routines = [];
+      state.unlockedVideoIds = [];
+      state.videoRewards = 0;
       window.SmartyStateHelpers.persist();
       window.SmartyApp.render();
       return;
