@@ -72,13 +72,20 @@
  
  #### Screenshots (Add at least 3)
  
- ![Screenshot1](docs/screenshot-child.png)  
+ ![Screenshot1](<img width="1851" height="813" alt="image" src="https://github.com/user-attachments/assets/17101fcc-a9c6-4813-846c-a2891dbb2def" />
+)  
  Child dashboard showing mood panel, checklist, and reward-based Fun Time section.
  
- ![Screenshot2](docs/screenshot-parent-insights.png)  
+ ![Screenshot2]<img width="1912" height="680" alt="image" src="https://github.com/user-attachments/assets/68853e1e-fbba-437c-a2e9-0083f03224af" />
+
+  
  Parent insights view showing activity logs and sentiment analysis summary.
  
- ![Screenshot3](docs/screenshot-parent-planner-filter.png)  
+ ![Screenshot3](<img width="1894" height="875" alt="image" src="https://github.com/user-attachments/assets/7b9d490e-7ee6-411c-900e-2dc867f67ee0" />
+<img width="1913" height="869" alt="image" src="https://github.com/user-attachments/assets/03201940-9924-431c-ae2b-a58eca2ec33b" />
+
+
+ 
  Parent planner and content filter with routine/task and approved video management.
  
  #### Diagrams
